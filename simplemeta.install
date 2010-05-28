@@ -1,0 +1,45 @@
+<?php
+// $Id$
+
+function simplemeta_install() {
+  drupal_install_schema('simplemeta');
+}
+
+function simplemeta_schema() {
+  return array('simplemeta_data' => 
+    array(
+    'fields' => array(
+      'sid' => array(
+      'type' => 'serial',
+      'not null' => TRUE,
+      ),
+      'path' => array(
+        'type' => 'varchar',
+      'length' => 255,
+            'not null' => TRUE,
+        'default' => '',      
+      ),
+      'title' => array(
+        'type' => 'text',
+            'not null' => TRUE,
+        'default' => '',
+      ),
+      'description' => array(
+        'type' => 'text',
+            'not null' => TRUE,
+        'default' => '',      
+      ),
+      'keywords' => array(
+        'type' => 'text',
+            'not null' => TRUE,
+        'default' => '',      
+      )
+    ),
+    'primary key' => array('sid')
+    )
+  );
+}
+
+function simplemeta_uninstall() {
+  drupal_uninstall_schema('simplemeta');
+}

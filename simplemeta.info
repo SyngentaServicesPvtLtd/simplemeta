@@ -1,0 +1,6 @@
+name = Simple Meta
+description = The Simple Meta module provides a flexible method to set meta tags, such as page title, keywords and description for current website page.
+package = SEO
+core = 6.x
+version = "6.x-1.0"
+dependencies[]= "admin_menu"
