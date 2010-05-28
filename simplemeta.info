@@ -4,3 +4,9 @@ package = SEO
 core = 6.x
 version = "6.x-1.0"
 dependencies[]= "admin_menu"
+; Information added by drupal.org packaging script on 2010-05-28
+version = "6.x-1.0"
+core = "6.x"
+project = "simplemeta"
+datestamp = "1275012907"
+

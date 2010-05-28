@@ -37,16 +37,11 @@ function simplemeta_menu() {
   ),
   ); 
 }
-function simplemeta_admin_menu_replacements() {
-  if (user_access('administer meta tags'))
-    simplemeta_page_worker();
-  
-  $items = array();
-  $url = url(SIMPLEMETA_ADMIN_MENU_PATH);
-  $items['li.admin-menu-toolbar-category > a[href=' . $url . ']'] =
-  '<span id="simplemeta-admin_menu-hook">' . t('Add meta tags') . '</span>';
-  return $items;
-}
+
+if (user_access('administer meta tags'))
+  simplemeta_page_worker();
+
+
 function simplemeta_perm() {
   return array('administer meta tags');
 }
@@ -177,6 +172,7 @@ function simplemeta_page_worker() {
   drupal_add_js( $path . '/js/simplemeta.js', 'module', 'header', TRUE);
   drupal_add_js( array(
     'simplemeta' => array(
+    'admin_menu' => url(SIMPLEMETA_ADMIN_MENU_PATH),
       'url' => simplemeta_current_url(),
       'saved' => t('Saved'),
       'saved_error' => t('Can\'t save!'),

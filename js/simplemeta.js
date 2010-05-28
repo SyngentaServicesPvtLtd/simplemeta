@@ -1,8 +1,6 @@
-Drupal.admin = Drupal.admin || {};
-Drupal.admin.behaviors = Drupal.admin.behaviors || {};
-Drupal.admin.behaviors.simplemeta = function (context) {
+$(window).load(function(){
   var
-    button = $("#admin-menu-wrapper a:has(#simplemeta-admin_menu-hook)", context),
+    button = $("#admin-menu li > a[href=" + Drupal.settings.simplemeta.admin_menu + "]"),
     drupal_settings = Drupal.settings,
     settings = drupal_settings.simplemeta,
     url = settings.url,
@@ -158,4 +156,4 @@ Drupal.admin.behaviors.simplemeta = function (context) {
   form.click(function(){ 
   return false;
   });
-};
+});
