@@ -9,39 +9,36 @@ function simplemeta_menu() {
       'access arguments' => array('administer meta tags'),
       'description' => 'SEO'
     ),
-  SIMPLEMETA_ADMIN_MENU_PATH => array(
-    'title' => t('Add meta tags'),
-    'page callback' => 'simplemeta_nop',
-    'access arguments' => array('administer meta tags'),
-    'description' => 'SEO',
-  ),
-  'simplemeta/ajax' => array(
-    'page callback' => 'simplemeta_ajax',
-    'access arguments' => array('administer meta tags'),
-    'type' => MENU_CALLBACK,
-  ),
-  'simplemeta/search' => array(
-    'page callback' => 'simplemeta_ajax_search',
-    'access arguments' => array('administer meta tags'),
-    'type' => MENU_CALLBACK,
-  ),
-  'simplemeta/item/ajax' => array(
-    'page callback' => 'simplemeta_ajax_load_item',
-    'access arguments' => array('administer meta tags'),
-    'type' => MENU_CALLBACK,
-  ),
-  'simplemeta/save/item/ajax' => array(
-    'page callback' => 'simplemeta_ajax_save_item',
-    'access arguments' => array('administer meta tags'),
-    'type' => MENU_CALLBACK,
-  ),
+    SIMPLEMETA_ADMIN_MENU_PATH => array(
+      'title' => t('Add meta tags'),
+      'page callback' => 'simplemeta_nop',
+      'access arguments' => array('administer meta tags'),
+      'description' => 'SEO',
+    ),
+    'simplemeta/ajax' => array(
+      'page callback' => 'simplemeta_ajax',
+      'access arguments' => array('administer meta tags'),
+      'type' => MENU_CALLBACK,
+    ),
+    'simplemeta/search' => array(
+      'page callback' => 'simplemeta_ajax_search',
+      'access arguments' => array('administer meta tags'),
+      'type' => MENU_CALLBACK,
+    ),
+    'simplemeta/item/ajax' => array(
+      'page callback' => 'simplemeta_ajax_load_item',
+      'access arguments' => array('administer meta tags'),
+      'type' => MENU_CALLBACK,
+    ),
+    'simplemeta/save/item/ajax' => array(
+      'page callback' => 'simplemeta_ajax_save_item',
+      'access arguments' => array('administer meta tags'),
+      'type' => MENU_CALLBACK,
+    ),
   ); 
 }
-
 if (user_access('administer meta tags'))
   simplemeta_page_worker();
-
-
 function simplemeta_perm() {
   return array('administer meta tags');
 }
@@ -252,7 +249,7 @@ function simplemeta_modern_menu() {
 }
 function simplemeta_ajax_search() {
   
-  $query = $_POST['s'];
+  $query = check_plain($_POST['s']);
   $page = $_POST['p'] - 0;
   $items = $_POST['i'] - 0;
   
@@ -264,11 +261,15 @@ function simplemeta_ajax_search() {
       sd.sid
     FROM
       {simplemeta_data} sd
+    LEFT JOIN
+      {url_alias} ua
+    ON
+      ua.src = sd.path
     WHERE
-      sd.path LIKE \'%%%s%%\'
+      sd.path LIKE \'%%%s%%\' OR ua.dst LIKE \'%%%s%%\'
     LIMIT
       %d,%d',
-    check_plain($_POST['s']), $page * $items, $items)) {
+    $query, $query, $page * $items, $items)) {
     
     while ($r = db_fetch_object($q)) {
       $out[$r->sid] = $r->path;
@@ -280,10 +281,14 @@ function simplemeta_ajax_search() {
       COUNT(*)
     FROM
       {simplemeta_data} sd
+    LEFT JOIN
+      {url_alias} ua
+    ON
+      ua.src = sd.path
     WHERE
-      sd.path LIKE \'%%%s%%\'
+      sd.path LIKE \'%%%s%%\' OR ua.dst LIKE \'%%%s%%\'
     ',
-    check_plain($_POST['s']), $page * $items, $items)) - 0;
+    $query, $query, $page * $items, $items)) - 0;
   }
   
   drupal_json($out);
@@ -315,6 +320,8 @@ function simplemeta_ajax_save_item() {
   $out = array();
   
   $url = $_POST['p'];
+  $url = drupal_get_normal_path($url);
+  
   $title = $_POST['t'];
   $keywords = $_POST['k'];
   $description = $_POST['d'];
