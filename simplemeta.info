@@ -3,7 +3,7 @@ description = The Simple Meta module provides a flexible method to set meta tags
 package = SEO
 core = 6.x
 version = "6.x-1.2"
-dependencies[]= "admin_menu"
+
 ; Information added by drupal.org packaging script on 2010-05-28
 version = "6.x-1.2"
 core = "6.x"
