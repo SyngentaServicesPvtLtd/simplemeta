@@ -1,5 +1,4 @@
 <?php
-// $Id$
 define('SIMPLEMETA_ADMIN_MENU_PATH', 'admin/simplemeta');
 function simplemeta_menu() {
   return array( 
