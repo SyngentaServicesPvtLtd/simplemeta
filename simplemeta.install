@@ -1,40 +1,164 @@
 <?php
 
+/**
+ *  Implements hook_install()
+ */
+
 function simplemeta_install() {
   drupal_install_schema('simplemeta');
+  db_query("UPDATE {system} SET weight = %d WHERE type = '%s' AND name = '%s'", array(10, 'module', 'simplemeta'));
 }
+
+/**
+ * Implements hook_schema() 
+ */
 
 function simplemeta_schema() {
-  return array('simplemeta_data' => 
-    array(
-      'fields' => array(
-        'sid' => array(
-          'type' => 'serial',
-          'not null' => TRUE,
-        ),
-        'path' => array(
-          'type' => 'varchar',
-          'length' => 255,
-          'not null' => TRUE,
-        ),
-        'title' => array(
-          'type' => 'text',
-          'not null' => TRUE,
-        ),
-        'description' => array(
-          'type' => 'text',
-          'not null' => TRUE,
-        ),
-        'keywords' => array(
-          'type' => 'text',
-          'not null' => TRUE,
-        )
+  $schema = array();
+  $schema['simplemeta'] = array(
+    'fields' => array(
+      'sid' => array(
+        'description' => 'The primary identifier for a Simplemeta data',
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
       ),
-      'primary key' => array('sid')
-    )
+      'path' => array(
+        'description' => 'Primary Key: the Drupal path this entry describes',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+      ),
+      'data' => array(
+        'description' => 'serialized array of meta data',
+        'type' => 'blob', 
+        'size' => 'big', 
+        'not null' => TRUE,
+      ),
+      'language' => array(
+        'description' => 'The language this Simplemeta data is for; blank means all languages',
+        'type' => 'varchar',
+        'length' => 12,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+      'fit' => array(
+        'description' => 'A numeric representation of how specific the path is.',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+    ),
+    'primary key' => array('sid'),
+    'unique keys' => array(
+      'path_language' => array('path', 'language'),
+    ),
   );
+  $schema['cache_simplemeta'] = drupal_get_schema_unprocessed('system', 'cache');
+  return $schema;
 }
 
+/**
+ * Implements hook_uninstall()
+ */
+
 function simplemeta_uninstall() {
+  variable_del('simplemeta_form_enable');
   drupal_uninstall_schema('simplemeta');
+}
+
+/**
+ * Initinal update for 6.2.x
+ */
+
+function simplemeta_update_6200(&$sandbox) {
+  if (!isset($sandbox['progress'])) {
+    $sandbox['progress'] = -1;
+    $sandbox['total'] = db_result(db_query("SELECT COUNT(*) FROM {simplemeta_data}"));
+    $sandbox['last'] = 0;
+  }
+  
+  $ret = array();
+  if ($sandbox['progress'] == -1) {
+    $schema = _simplemeta_schema_6200();
+    db_create_table($ret, 'simplemeta', $schema['simplemeta']);
+    db_create_table($ret, 'cache_simplemeta', $schema['cache_simplemeta']);
+    db_query("UPDATE {system} SET weight = %d WHERE type = '%s' AND name = '%s'", array(10, 'module', 'simplemeta'));
+    $sandbox['progress'] = 0;
+    $ret['#finished'] = 0;
+    return $ret;
+  }
+  $last = $sandbox['last'];
+  $result = db_query("SELECT * FROM {simplemeta_data} WHERE sid > %d  ORDER BY sid ASC LIMIT 0, 50", $last);
+  while ($row = db_fetch_object($result)) {
+    $data = array(
+      'title' => $row->title,
+      'description' => $row->description,
+      'keywords' => $row->keywords,
+    );
+    $query_args = array(
+      $row->sid,
+      $row->path,
+      serialize($data),
+    );
+    db_query("INSERT INTO {simplemeta} (sid, path, data) VALUES (%d, '%s', %b)", $query_args);
+    $sandbox['progress']++;
+    $sandbox['last'] = $row->sid;
+  }
+  if ($last == $sandbox['last']) {
+    $ret['#finished'] = 1;
+  }
+  else {
+    $ret['#finished'] = ($sandbox['total'] > 0) ? $sandbox['progress'] / $sandbox['total'] : 1;
+  }
+  
+  if ($ret['#finished'] == 1) {
+    db_drop_table($ret, 'simplemeta_data');
+  }
+  return $ret;
+}
+
+function _simplemeta_schema_6200() {
+  $schema = array();
+  $schema['simplemeta'] = array(
+    'fields' => array(
+      'sid' => array(
+        'description' => 'The primary identifier for a Simplemeta data',
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ),
+      'path' => array(
+        'description' => 'Primary Key: the Drupal path this entry describes',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+      ),
+      'data' => array(
+        'description' => 'serialized array of meta data',
+        'type' => 'blob', 
+        'size' => 'big', 
+        'not null' => TRUE,
+      ),
+      'language' => array(
+        'description' => 'The language this Simplemeta data is for; blank means all languages',
+        'type' => 'varchar',
+        'length' => 12,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+      'fit' => array(
+        'description' => 'A numeric representation of how specific the path is.',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+    ),
+    'primary key' => array('sid'),
+    'unique keys' => array(
+      'path_language' => array('path', 'language'),
+    ),
+  );
+  $schema['cache_simplemeta'] = drupal_get_schema_unprocessed('system', 'cache');
+  return $schema;
 }
