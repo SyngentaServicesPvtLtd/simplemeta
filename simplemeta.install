@@ -67,6 +67,7 @@ function simplemeta_schema() {
 
 function simplemeta_uninstall() {
   variable_del('simplemeta_form_enable');
+  variable_del('simplemeta_language_enable');
 }
 
 /**

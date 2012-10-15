@@ -1,4 +1,5 @@
 (function ($) {
+  var formHidden = false;
   Drupal.behaviors.simplemeta = {
     attach: function (context) {
       var forms = $('#simplemeta-meta-form.simplemeta-meta-form-ajax:not(.simplemeta-processed)', context);
@@ -7,7 +8,10 @@
         var form = $(this),
             close = $('<span class="form-close"></span>').prependTo(form);
         close.text(Drupal.t('Meta'));
-        form.addClass('hidden').css({left: (-form.outerWidth()) + 'px'});
+        if (!formHidden) {
+          form.addClass('hidden').css({left: (-form.outerWidth()) + 'px'});
+          formHidden = true;
+        }
 
         close.click(function (event) {
           var $this = $(this);

@@ -8,10 +8,6 @@ Simple Meta 6.2.x:
 Simple Meta module was totally reworked to make code clear and extendable.
 Simple Meta provides hook_simpleta_info() now, so you can define your own meta tags. Please see simplemeta_simplemeta_info() for details.
 
-Simple Meta 6.2.0 Beta:
-This version is stable for usual use, i.e. setting title, description and keywords for pages.
-Some little changes in hook_simplemeta_info() are possible, but without any changes in the database structure.
-
 
 Installing Simple Meta:
 1. Copy the "Simple Meta" directory into the 'sites/all/modules'
@@ -21,6 +17,7 @@ Using Simple Meta:
 1. Grant "administer simplemeta" permission to needed user roles.
 2. Set the meta for the current page by clicking on the "Meta" tab at the left of the page.
 3. Administer meta on the Simple Meta administration page (Administer --> Content management --> SimpleMeta).
+4. Configure on-page form appearance and multilanguage support on the settings page (Administer --> Content management --> SimpleMeta --> Settings)
 
 Upgrading from 6.1.x to 6.2.x:
 1. Please follow http://drupal.org/node/672472

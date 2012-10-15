@@ -3,19 +3,25 @@
 /**
  * Simplemeta settings form
  */
-//function simplemeta_settings_form($form, &$form_state) {
-//  $form['simplemeta_form_enable'] = array(
-//    '#type' => 'checkbox',
-//    '#title' => t('Enable Add Meta Tags Form'),
-//    '#description' => t('If enabled, form will appear on pages'),
-//    '#default_value' => variable_get('simplemeta_form_enable', FALSE),
-//    '#return_value' => TRUE,
-//  );
-//  return system_settings_form($form);
-//}
+function simplemeta_settings_form($form, &$form_state) {
+  $form['simplemeta_form_enable'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Enable Add Meta Tags Form'),
+    '#description' => t('If enabled, form will appear on pages'),
+    '#default_value' => variable_get('simplemeta_form_enable', TRUE),
+    '#return_value' => TRUE,
+  );
+  $form['simplemeta_language_enable'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Enable Language Support'),
+    '#description' => t('If enabled, language selectbox will appear on the form. Otherwise all created metadata will be language-neutral i.e. global for all languages'),
+    '#default_value' => variable_get('simplemeta_language_enable', FALSE),
+    '#return_value' => TRUE,
+  );
+  return system_settings_form($form);
+}
 
 function simplemeta_meta_list() {
-  $info = simplemeta_get_info();
   $query = db_select('simplemeta', 's')
     ->extend('PagerDefault')
     ->fields('s')
