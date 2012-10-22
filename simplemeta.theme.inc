@@ -5,20 +5,30 @@
  */
 
 function theme_simplemeta_meta_list($items) {
-  $header = array(t('Path'), t('Alias'), t('Action'));
+  $header = array(t('Path'), t('Alias'));
+  $language_enabled = variable_get('simplemeta_language_enable', FALSE);
+  if ($language_enabled) {
+    $header[] = t('Language');
+  }
+  $header[] =  t('Action');
+  
   $rows = array();
   foreach ($items as $meta) {
+    $row = array();
     // @todo think about how to determine that path is pattern, like node/%/edit
     $pattern = (strpos($meta->path, '%') !== FALSE);
     $alias = drupal_get_path_alias($meta->path);
-    $rows[] = array(
-      (!$pattern) ? l($meta->path, $meta->path) : check_plain($meta->path),
-      ((!$pattern) && ($alias != $meta->path)) ? l($alias, $meta->path) : '-',
-      l(t('Edit'), 'admin/content/simplemeta/' . $meta->sid . '/edit') . ' | ' . l(t('Delete'), 'admin/content/simplemeta/' . $meta->sid . '/delete'),
-    );
+    $row[] = (!$pattern) ? l($meta->path, $meta->path) : check_plain($meta->path);
+    $row[] = ((!$pattern) && ($alias != $meta->path)) ? l($alias, $meta->path) : '-';
+    if ($language_enabled) {
+      // langcode... there is no need to sanitize it
+      $row[] = ($meta->language) ? $meta->language : '-';
+    }
+    $row[] = l(t('Edit'), 'admin/content/simplemeta/' . $meta->sid . '/edit') . ' | ' . l(t('Delete'), 'admin/content/simplemeta/' . $meta->sid . '/delete');
+    $rows[] = $row;
   }
   if (empty($rows)) {
-    $rows[] = array(array('data' => t('There is no saved meta data'), 'colspan' => 3));
+    $rows[] = array(array('data' => t('There is no saved meta data'), 'colspan' => count($header)));
   }
   return theme('table', $header, $rows);
 }

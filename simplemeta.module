@@ -4,10 +4,34 @@
  * Implements hook_init()
  */
 function simplemeta_init() {
-  if (user_access('administer simplemeta') && (arg(0) != 'admin')) {
+  global $language;
+  if (variable_get('simplemeta_form_enable', TRUE) && user_access('administer simplemeta') && (arg(0) != 'admin')) {
     $modulepath = drupal_get_path('module', 'simplemeta');
     drupal_add_css($modulepath . '/css/simplemeta.css', 'module', 'all', FALSE);
     drupal_add_js($modulepath . '/js/simplemeta.js', 'module', 'header', FALSE, TRUE, FALSE);
+    
+    // we use AHAH for language selectbox
+    // but hook_footer() is invoked too late so page javascripts are already build
+    // so form_expand_ahah() will have no effect and AHAH will not be applied to the form element
+    if (variable_get('simplemeta_language_enable', FALSE)) {
+      $path = $_GET['q'];
+      $lang = $language->language;
+
+      $meta = simplemeta_meta_load_by_path($path, $lang);
+      // Try to load language-neutral
+      if (!$meta) {
+        $meta = simplemeta_meta_load_by_path($path);
+      }
+      if (!$meta) {
+        $meta = new stdClass();
+        $meta->path = $path;
+        $meta->data = array();
+        $meta->language = '';
+      }
+      
+      // @todo is there other way instead of using static cache? Think about
+      _simplemeta_page_meta_form($meta);
+    }
   }
 }
 
@@ -61,13 +85,19 @@ function simplemeta_menu() {
     'type' => MENU_CALLBACK,
     'file' => 'simplemeta.admin.inc',
   );
-//  $items['admin/settings/simplemeta'] = array(
-//    'title' => 'SimpleMeta Settings',
-//    'page callback' => 'drupal_get_form',
-//    'page arguments' => array('simplemeta_settings_form'),
-//    'access arguments' => array('administer simplemeta'),
-//    'file' => 'simplemeta.admin.inc',
-//  );
+  $items['admin/content/simplemeta/settings'] = array(
+    'title' => 'Settings',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('simplemeta_settings_form'),
+    'access arguments' => array('administer simplemeta'),
+    'file' => 'simplemeta.admin.inc',
+  );
+  $items['admin/content/simplemeta/ahah_language'] = array(
+    'title' => 'Language AHAH',
+    'page callback' => 'simplemeta_page_meta_form_ahah_language',
+    'access arguments' => array('administer simplemeta'),
+    'type' => MENU_CALLBACK,
+  );
   return $items;
 }
 
@@ -75,15 +105,23 @@ function simplemeta_menu() {
  * Implements hook_footer()
  */
 function simplemeta_footer($main = 0) {
-  if (user_access('administer simplemeta') && (arg(0) != 'admin')) {
-    $meta = simplemeta_meta_load_by_path($_GET['q']);
+  global $language;
+  if (variable_get('simplemeta_form_enable', TRUE) && user_access('administer simplemeta') && (arg(0) != 'admin')) {
+    $path = $_GET['q'];
+    $lang = $language->language;
+    
+    $meta = simplemeta_meta_load_by_path($path, $lang);
+    // Try to load language-neutral
+    if (!$meta) {
+      $meta = simplemeta_meta_load_by_path($path);
+    }
     if (!$meta) {
       $meta = new stdClass();
-      $meta->path = $_GET['q'];
+      $meta->path = $path;
       $meta->data = array();
       $meta->language = '';
     }
-    return drupal_get_form('simplemeta_meta_form', $meta, TRUE);
+    return _simplemeta_page_meta_form($meta);
   }
 }
 
@@ -123,7 +161,8 @@ function simplemeta_theme() {
  */
 
 function simplemeta_preprocess_page(&$vars) {
-  if ($meta = simplemeta_get_page_meta()) {
+  global $language;
+  if ($meta = simplemeta_get_page_meta($_GET['q'], $language->language)) {
     // set page title
     if (!empty($meta->data['title'])) {
       $vars['head_title'] = check_plain($meta->data['title']);
@@ -163,6 +202,7 @@ function simplemeta_form_title($meta) {
   $form = array(
     '#type' => 'textfield',
     '#title' => t('Title'),
+    '#maxlength' => 255,
     '#default_value' => (isset($meta->data['title'])) ? $meta->data['title'] : '',
   );
   return $form;
@@ -181,6 +221,7 @@ function simplemeta_form_keywords($meta) {
   $form = array(
     '#type' => 'textfield',
     '#title' => t('Keywords'),
+    '#maxlength' => 255,
     '#default_value' => (isset($meta->data['keywords'])) ? $meta->data['keywords'] : '',
   );
   return $form;
@@ -202,7 +243,7 @@ function simplemeta_meta_save($meta) {
     module_invoke_all('simplemeta', $meta, 'insert');
   }
   else {
-    $result = drupal_write_record('simplemeta', $record, array('path'));
+    $result = drupal_write_record('simplemeta', $record, array('sid'));
     module_invoke_all('simplemeta', $meta, 'update');
   }
   return $result;
@@ -291,23 +332,19 @@ function simplemeta_meta_delete($sid) {
   }
 }
 
-function simplemeta_meta_form(&$form_state, $meta, $ajax = FALSE) {
+function simplemeta_meta_form(&$form_state, $meta) {
   $form = array();
   // let's use _ as prefix to not conflict with other elements
   $form['_meta'] = array(
     '#type' => 'value',
     '#value' => $meta,
   );
-  $form['_ajax'] = array(
-    '#type' => 'value',
-    '#value' => $ajax,
-  );
   
   if (!isset($meta->path)) {
     $form['_path'] = array(
       '#type' => 'textfield',
       '#title' => t('Path'),
-      // '#description' => t(''),
+      '#description' => t('% may be used as placeholder for system pathes, for example, news/archive/%'),
       '#required' => TRUE,
     );
   }
@@ -315,6 +352,26 @@ function simplemeta_meta_form(&$form_state, $meta, $ajax = FALSE) {
     $form['_path'] = array(
       '#type' => 'value',
       '#value' => $meta->path,
+    );
+  }
+  if (variable_get('simplemeta_language_enable', FALSE)) {
+  
+    $form['_language'] = array(
+      '#type' => 'select',
+      '#title' => t('Language'),
+      '#options' => _simplemeta_langauge_list(),
+      '#default_value' => $meta->language,
+    );
+    // do not allow change language for existing meta
+    if (isset($meta->sid)) {
+      $form['_language']['#disabled'] = TRUE;
+      $form['_language']['#value'] = $meta->language;
+    }
+  }
+  else {
+    $form['_language'] = array(
+      '#type' => 'value',
+      '#value' => $meta->language,
     );
   }
   
@@ -328,16 +385,11 @@ function simplemeta_meta_form(&$form_state, $meta, $ajax = FALSE) {
     '#submit' => array('simplemeta_meta_form_submit_save'),
     '#attributes' => array('class' => 'button-save'),
   );
-  $form['_buttons']['delete'] = array(
-    '#type' => 'submit',
-    '#value' => t('Delete'),
-    '#submit' => array('simplemeta_meta_form_submit_delete'),
-    '#access' => !empty($meta->sid),
-    '#attributes' => array('class' => 'button-delete'),
-  );
-  
-  if ($ajax) {
-    $form['#attributes']['class'] = 'simplemeta-meta-form-ajax';
+  if (!empty($meta->sid)) {
+    $form['_buttons']['delete'] = array(
+        '#type' => 'markup',
+        '#value' => l(t('Delete'), 'admin/content/simplemeta/' . $meta->sid . '/delete'),
+    );
   }
   return $form;
 }
@@ -346,9 +398,9 @@ function simplemeta_meta_form_validate_save($form, &$form_state) {
   $values = $form_state['values'];
   $meta = $values['_meta'];
   $path = $values['_path'];
+  $lang = $values['_language'];
   $normal_path = drupal_get_normal_path($path);
   if ($path != $normal_path) {
-    // drupal_set_message(t('The menu system stores system paths only, but will use the URL alias for display. %link_path has been stored as %normal_path', array('%link_path' => $item['link_path'], '%normal_path' => $normal_path)));
     $path = $normal_path;
   }
   if (!menu_path_is_external($path)) {
@@ -370,7 +422,7 @@ function simplemeta_meta_form_validate_save($form, &$form_state) {
   if (isset($meta->sid) && (!simplemeta_meta_load($meta->sid))) {
     form_set_error('_meta', t("Meta #%sid doesn't exist anymore", array('%id' => $meta->sid)));
   }
-  elseif ((!isset($meta->sid)) && simplemeta_meta_load_by_path($path, $meta->language)) {
+  elseif ((!isset($meta->sid)) && simplemeta_meta_load_by_path($path, $lang)) {
     form_set_error('_meta', t("Meta for this page in this language already exists"));
   }
   
@@ -387,6 +439,7 @@ function simplemeta_meta_form_submit_save($form, &$form_state) {
   $values = $form_state['values'];
   $meta = $values['_meta'];
   $meta->path = $values['_path'];
+  $meta->language = $values['_language'];
   $meta->data = array_intersect_key($values, simplemeta_get_form_elements());
   $info = simplemeta_get_info();
   foreach ($info as $key => $definition) {
@@ -399,20 +452,63 @@ function simplemeta_meta_form_submit_save($form, &$form_state) {
   simplemeta_meta_save($meta);
   cache_clear_all('*', 'cache_simplemeta', TRUE);
   drupal_set_message(t('Meta has been saved'));
-  if (!$form_state['values']['_ajax']) {
-    $form_state['redirect'] = 'admin/content/simplemeta/list';
-  }
+  $form_state['redirect'] = 'admin/content/simplemeta/list';
 }
 
-function simplemeta_meta_form_submit_delete($form, &$form_state) {
-  if (!$form_state['values']['_ajax']) {
-    $form_state['redirect'] = 'admin/content/simplemeta/' . $form_state['values']['_meta']->sid . '/delete';
+/**
+ * On-page simplemeta form
+ */
+function simplemeta_page_meta_form(&$form_state, $meta) {
+  $form_id = 'simplemeta_meta_form';
+  $_form_state = $form_state;
+  // use simplemeta_meta_form as a base so alter hooks for simplemeta_meta_form will work here too
+  // @todo do not use simplemeta_meta_form as a base, but hook_form_alter() (and its more specific version) will need to alter both forms (in case changes need to appear on both)
+  $form = drupal_retrieve_form($form_id, $_form_state, $meta);
+  drupal_prepare_form($form_id, $form, $_form_state);
+
+  if (variable_get('simplemeta_language_enable', FALSE)) {
+    $form['_language']['#disabled'] = FALSE;
+    unset($form['_language']['#value']);
+    $form['_language']['#ahah'] = array(
+      'wrapper' => 'simplemeta-meta-form-ajax-wrapper',
+      'method' => 'replace',
+      'path' => 'admin/content/simplemeta/ahah_language',
+    );
+    // prevent AHAH from setting #action to AHAH callback path on form rebuilding
+    // @see simplemeta_page_meta_form_ahah_language()
+    $form['#action'] = (isset($form_state['action'])) ? $form_state['action'] : $_GET['q'];
   }
-  else {
-    simplemeta_meta_delete($form_state['values']['_meta']->sid);
-    cache_clear_all('*', 'cache_simplemeta', TRUE);
-    drupal_set_message(t('Meta has been deleted'));
+  $form['_buttons']['save']['#submit'][] = 'simplemeta_page_meta_form_submit_save';
+  if (!empty($meta->sid)) {
+    $form['_buttons']['delete'] = array(
+      '#type' => 'submit',
+      '#value' => t('Delete'),
+      '#attributes' => array('class' => 'button-delete'),
+      '#submit' => array('simplemeta_page_meta_form_submit_delete'),
+    );
   }
+  $form['#prefix'] = '<div id="simplemeta-meta-form-ajax-wrapper">';
+  $form['#suffix'] = '</div>';
+  $form['#attributes']['class'] = 'simplemeta-meta-form-ajax';
+  // use the same id attribute for both admin and on-page forms
+  $form['#id'] = 'simplemeta-meta-form';
+  return $form;
+}
+
+/**
+ * simplemeta_page_meta_form submit callback for Save action
+ */
+function simplemeta_page_meta_form_submit_save($form, &$form_state) {
+  unset($form_state['redirect']);
+}
+
+/**
+ * simplemeta_page_meta form submit callback for Delete action
+ */
+function simplemeta_page_meta_form_submit_delete($form, &$form_state) {
+  simplemeta_meta_delete($form_state['values']['_meta']->sid);
+  cache_clear_all('*', 'cache_simplemeta', TRUE);
+  drupal_set_message(t('Meta has been deleted'));
 }
 
 /**
@@ -454,6 +550,61 @@ function simplemeta_get_form_elements($meta = NULL, $reset = FALSE) {
 }
 
 /**
+ * AHAH callback for language element of the simplemeta_page_meta_form
+ */
+function simplemeta_page_meta_form_ahah_language() { 
+  $form_state = array(
+    'storage' => NULL,
+    'submitted' => FALSE,
+    'rebuild' => TRUE,
+  );
+  $form_build_id = $_POST['form_build_id'];
+  
+  $form = form_get_cache($form_build_id, $form_state);
+
+  $args = $form['#parameters'];
+  
+  // @todo should we check here that form cache exists and $form_id is simplemeta_page_meta_form? This callback works in "right AHAH way" like poll_choice_js() works... But think about
+  $form_id = array_shift($args);
+  $form_state['post'] = $form['#post'] = $_POST;
+  $form['#programmed'] = $form['#redirect'] = FALSE;
+
+  $form_state['action'] = $form['#action'];
+  
+  drupal_process_form($form_id, $form, $form_state);
+  
+  $_meta = $form_state['values']['_meta'];
+  $lang = $form_state['values']['_language'];
+  // drupal_process_form() uses old _meta value and new _language value on validation and this may cause "Meta for this page in this language already exists" validation error
+  // But we don't need to submit the form, we just need to rebuild the form using another $meta argument
+  // So lets just validate that new _language value is legal choice
+  // @see _form_validate()
+  // @todo how we can avoid "Meta for this page in this language already exists" validation error here? Think about
+  if (isset($form['_language']['#options']) && isset($form['_language']['#options'][$lang])) {
+    $path = $_meta->path;
+    $meta = simplemeta_meta_load_by_path($path, $lang);
+    if (!$meta) {
+      $meta = new stdClass();
+      $meta->path = $path;
+      $meta->data = array();
+      $meta->language = $lang;
+    }
+
+    $args[1] = $meta;
+  }
+  
+  $form = drupal_rebuild_form($form_id, $form_state, $args, $form_build_id);
+  
+  unset($form['#prefix'], $form['#suffix']);
+  
+  // clear messages queue
+  drupal_get_messages();
+  
+  $output = drupal_render($form);
+  
+  drupal_json(array('status' => TRUE, 'data' => $output));
+}
+/**
  * @param string $path
  * @return int a numeric representation of how specific the path is 
  */
@@ -468,4 +619,22 @@ function _simplemeta_meta_calculate_fit($path) {
     }
   }
   return $fit;
+}
+
+function _simplemeta_page_meta_form($meta, $reset = FALSE) {
+  static $form;
+  if ((!isset($form)) || $reset) {
+    $form = drupal_get_form('simplemeta_page_meta_form', $meta);
+  }
+  return $form;
+}
+
+function _simplemeta_langauge_list() {
+  $languages = language_list();
+  $options = array();
+  foreach ($languages as $language) {
+    $options[$language->language] = $language->name;
+  }
+  $options = array('' => t('- Language neutral -')) + $options;
+  return $options;
 }
