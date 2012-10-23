@@ -476,7 +476,7 @@ function simplemeta_page_meta_form(&$form_state, $meta) {
     );
     // prevent AHAH from setting #action to AHAH callback path on form rebuilding
     // @see simplemeta_page_meta_form_ahah_language()
-    $form['#action'] = (isset($form_state['action'])) ? $form_state['action'] : $_GET['q'];
+    $form['#action'] = (isset($form_state['action'])) ? $form_state['action'] : url($_GET['q']);
   }
   $form['_buttons']['save']['#submit'][] = 'simplemeta_page_meta_form_submit_save';
   if (!empty($meta->sid)) {
