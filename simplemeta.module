@@ -4,7 +4,7 @@
  * Implements hook_init()
  */
 function simplemeta_init() {
-  if (variable_get('simplemeta_form_enable', TRUE) && user_access('administer simplemeta') && (arg(0) != 'admin')) {
+  if (variable_get('simplemeta_form_enable', TRUE) && user_access('administer simplemeta') && !path_is_admin(current_path())) {
     $modulepath = drupal_get_path('module', 'simplemeta');
     drupal_add_css($modulepath . '/css/simplemeta.css', array('preprocess' => FALSE));
     drupal_add_js($modulepath . '/js/simplemeta.js', array('preprocess' => FALSE));
@@ -80,7 +80,7 @@ function simplemeta_menu() {
  */
 function simplemeta_page_alter(&$page) {
   global $language;
-  if (variable_get('simplemeta_form_enable', TRUE) && user_access('administer simplemeta') && (arg(0) != 'admin')) {
+  if (variable_get('simplemeta_form_enable', TRUE) && user_access('administer simplemeta') && !path_is_admin(current_path())) {
     $path = $_GET['q'];
     $lang = $language->language;
     
