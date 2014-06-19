@@ -285,7 +285,7 @@ function simplemeta_get_page_meta($path = NULL, $language = '', $reset = FALSE) 
       $row = NULL;
       $original_map = arg(NULL, $path);
       $parts = array_slice($original_map, 0, MENU_MAX_PARTS);
-      $ancestors = menu_get_ancestors($parts);
+      $ancestors = simplemeta_path_get_ancestors($parts);
       $query = db_select('simplemeta', 's')
         ->fields('s')
         ->condition('s.path', $ancestors, 'IN')
@@ -578,6 +578,61 @@ function simplemeta_page_meta_form_ajax_language($form, $form_state) {
     'values' => array(),
   ) + form_state_defaults();
   return drupal_rebuild_form('simplemeta_page_meta_form', $form_state, $form);
+}
+
+/**
+ * Get path ancestors of the path (represented as parts) to find page's SimpleMeta configuration
+ * @see menu_get_ancestors()
+ */
+function simplemeta_path_get_ancestors($parts) {
+  $number_parts = count($parts);
+  $ancestors = array();
+  $length =  $number_parts - 1;
+  $end = (1 << $number_parts) - 1;
+  // menu_masks actually takes defined menu paths (via hook_menu() implementation) into account
+  // @todo function probably should return list of all possible ancestors (but it's a bigger list actually)
+  $masks = variable_get('menu_masks');
+  // If the optimized menu_masks array is not available use brute force to get
+  // the correct $ancestors and $placeholders returned. Do not use this as the
+  // default value of the menu_masks variable to avoid building such a big
+  // array.
+  if (!$masks) {
+    $masks = range(511, 1);
+  }
+  // Only examine patterns that actually exist as router items (the masks).
+  foreach ($masks as $i) {
+    if ($i > $end) {
+      // Only look at masks that are not longer than the path of interest.
+      continue;
+    }
+    elseif ($i < (1 << $length)) {
+      // We have exhausted the masks of a given length, so decrease the length.
+      --$length;
+    }
+    // path patterns which have less parts than original path must end with %
+    // this also includes shorter paths without %
+    if (($length < $number_parts - 1) && ($i & 1)) {
+      continue;
+    }
+    $current = '';
+    for ($j = $length; $j >= 0; $j--) {
+      // Check the bit on the $j offset.
+      if ($i & (1 << $j)) {
+        // Bit one means the original value.
+        $current .= $parts[$length - $j];
+      }
+      else {
+        // Bit zero means means wildcard.
+        $current .= '%';
+      }
+      // Unless we are at offset 0, add a slash.
+      if ($j) {
+        $current .= '/';
+      }
+    }
+    $ancestors[] = $current;
+  }
+  return $ancestors;
 }
 
 /**
