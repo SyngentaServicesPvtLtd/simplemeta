@@ -3,4 +3,3 @@ description = The Simple Meta module provides a flexible method to set meta tags
 package = SEO
 core = 7.x
 configure = admin/content/simplemeta/settings
-

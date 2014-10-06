@@ -1,3 +1,8 @@
+/**
+ * @file
+ * Show/hide functionality for SimpleMeta on-page form.
+ */
+
 (function ($) {
   var formHidden = false;
   Drupal.behaviors.simplemeta = {
