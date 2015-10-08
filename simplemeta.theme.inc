@@ -55,7 +55,7 @@ function theme_simplemeta_meta_title($vars) {
 function theme_simplemeta_meta_description($vars) {
   $meta = $vars['meta'];
   if (!empty($meta->data['description'])) {
-    return '<meta name="description" content="' . trim(strip_tags(decode_entities($meta->data['description']))) . '" />';
+    return '<meta name="description" content="' . check_plain(trim(strip_tags(decode_entities($meta->data['description'])))) . '" />';
   }
   return '';
 }
@@ -66,7 +66,7 @@ function theme_simplemeta_meta_description($vars) {
 function theme_simplemeta_meta_keywords($vars) {
   $meta = $vars['meta'];
   if (!empty($meta->data['keywords'])) {
-    return '<meta name="keywords" content="' . trim(strip_tags(decode_entities($meta->data['keywords']))) . '" />';
+    return '<meta name="keywords" content="' . check_plain(trim(strip_tags(decode_entities($meta->data['keywords'])))) . '" />';
   }
   return '';
 }
