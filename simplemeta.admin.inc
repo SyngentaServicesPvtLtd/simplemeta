@@ -2,11 +2,107 @@
 
 /**
  * @file
- * Administration
+ * Admin UI, callbacks and helper functions.
  */
 
 /**
- * SimpleMeta settings form builder.
+ * SimpleMeta entity form callback.
+ *
+ * @see entity_form()
+ */
+function simplemeta_form($form, &$form_state, $meta, $op, $type = NULL) {
+  $form['path'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Path'),
+    '#description' => t('% may be used as placeholder for system paths, for example, news/archive/%'),
+    '#default_value' => $meta->path,
+    '#required' => TRUE,
+  );
+  $form['language'] = array(
+    '#type' => 'select',
+    '#title' => t('Language'),
+    '#options' => _simplemeta_language_list(),
+    '#default_value' => $meta->language,
+  );
+
+  $form['data'] = array(
+    '#tree' => TRUE,
+  );
+  // Meta title.
+  $form['data']['title'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Title'),
+    '#maxlength' => 255,
+    '#default_value' => (isset($meta->data['title'])) ? $meta->data['title'] : '',
+  );
+  // Meta description.
+  $form['data']['description'] = array(
+    '#type' => 'textarea',
+    '#title' => t('Description'),
+    '#default_value' => (isset($meta->data['description'])) ? $meta->data['description'] : '',
+  );
+  $form['data']['keywords'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Keywords'),
+    '#description' => t('Comma-separated list of keywords.'),
+    '#maxlength' => 255,
+    '#default_value' => (isset($meta->data['keywords'])) ? $meta->data['keywords'] : '',
+  );
+
+  $form['actions'] = array(
+    '#type' => 'actions',
+    '#weight' => 400,
+  );
+  $form['actions']['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Save'),
+    '#validate' => array('simplemeta_form_validate_save'),
+    '#submit' => array('simplemeta_form_submit_save'),
+  );
+  if (!empty($meta->sid)) {
+    $form['actions']['delete'] = array(
+      '#type' => 'submit',
+      '#value' => t('Delete'),
+      '#suffix' => l(t('Cancel'), 'admin/content/simplemeta'),
+      '#submit' => array('simplemeta_form_submit_delete'),
+      '#weight' => 45,
+    );
+  }
+
+  // We append the validate handler to #validate in case a form callback_wrapper
+  // is used to add validate handlers earlier.
+  $form['#attributes']['class'][] = str_replace('_', '-', __FUNCTION__);
+  return $form;
+}
+
+/**
+ * SimpleMeta entity form validation callback.
+ */
+function simplemeta_form_validate_save($form, &$form_state) {
+  // Do nothing for now.
+  // @todo provide some validation or attach validation callbacks directly to form elements
+}
+
+/**
+ * SimpleMeta entity form submit callback on save op.
+ */
+function simplemeta_form_submit_save($form, &$form_state) {
+  $entity = entity_ui_controller('simplemeta')->entityFormSubmitBuildEntity($form, $form_state);
+  $entity->save();
+  $form_state['redirect'] = 'admin/content/simplemeta';
+  drupal_set_message(t('SimpleMeta has been saved.'));
+}
+
+/**
+ * SimpleMeta entity form submit callback on delete op.
+ */
+function simplemeta_form_submit_delete($form, &$form_state) {
+  $entity = $form_state['simplemeta'];
+  $form_state['redirect'] = $form_state['redirect'] = 'admin/content/simplemeta/manage/' . $entity->sid . '/delete';
+}
+
+/**
+ * SimpleMeta settings form.
  */
 function simplemeta_settings_form($form, &$form_state) {
   $form['simplemeta_form_enable'] = array(
@@ -24,67 +120,4 @@ function simplemeta_settings_form($form, &$form_state) {
     '#return_value' => TRUE,
   );
   return system_settings_form($form);
-}
-
-/**
- * Menu callback; show list of saved SimpleMeta configurations. 
- * 
- * @return string
- *   themed output
- */
-function simplemeta_meta_list() {
-  $query = db_select('simplemeta', 's')
-    ->extend('PagerDefault')
-    ->fields('s')
-    ->orderBy('s.sid', 'DESC')->limit(20);
-  $result = $query->execute();
-
-  $items = array();
-  while ($meta = $result->fetchObject()) {
-    $meta->data = unserialize($meta->data);
-    $items[] = $meta;
-  }
-
-  return theme('simplemeta_meta_list', array('items' => $items)) . theme('pager');
-}
-/**
- * Menu callback for creating new SimpleMeta configurations.
- * 
- * @return array
- *   form structure to render
- */
-function simplemeta_add() {
-  $meta = new stdClass();
-  $meta->data = array();
-  $meta->language = '';
-  return drupal_get_form('simplemeta_meta_form', $meta);
-}
-
-/**
- * SimpleMeta deletion confirmation form builder.
- */
-function simplemeta_meta_delete_confirm($form, &$form_state, $meta) {
-  $form['sid'] = array(
-    '#type' => 'value',
-    '#value' => $meta->sid,
-  );
-
-  return confirm_form($form,
-    t('Are you sure you want to delete Simplemeta %sid?', array('%sid' => $meta->sid)),
-    isset($_GET['destination']) ? $_GET['destination'] : 'admin/content/simplemeta/' . $meta->sid . '/edit',
-    t('This action cannot be undone.'),
-    t('Delete'),
-    t('Cancel')
-  );
-}
-
-/**
- * SimpleMeta deletion confirmation form submit callback.
- */
-function simplemeta_meta_delete_confirm_submit($form, &$form_state) {
-  if ($form_state['values']['confirm']) {
-    simplemeta_meta_delete($form_state['values']['sid']);
-    cache_clear_all('*', 'cache_simplemeta', TRUE);
-  }
-  $form_state['redirect'] = 'admin/content/simplemeta/list';
 }

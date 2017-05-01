@@ -6,7 +6,7 @@ You can set meta data not only for node pages, but for any page.
 
 Simple Meta 6.2.x: 
 Simple Meta module was totally reworked to make code clear and extendable.
-Simple Meta provides hook_simpleta_info() now, so you can define your own meta tags. Please see simplemeta_simplemeta_info() for details.
+Simple Meta provides hook_simplemeta_info() now, so you can define your own meta tags. Please see simplemeta_simplemeta_info() for details.
 
 
 Installing Simple Meta:
