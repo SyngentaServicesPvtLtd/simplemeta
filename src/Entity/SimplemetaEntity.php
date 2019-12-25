@@ -66,8 +66,8 @@ class SimplemetaEntity extends ContentEntityBase implements SimplemetaEntityInte
   public static function baseFieldDefinitions(EntityTypeInterface $entity_type) {
     $fields = parent::baseFieldDefinitions($entity_type);
 
-    $fields['path'] = BaseFieldDefinition::create('string')
-      ->setLabel(t('Path'))
+    $fields['url'] = BaseFieldDefinition::create('string')
+      ->setLabel(t('Url'))
       ->setDescription(t('Drupal path this SimpleMeta entity related to.'))
       ->setRequired(TRUE)
       ->setTranslatable(FALSE)
@@ -80,13 +80,11 @@ class SimplemetaEntity extends ContentEntityBase implements SimplemetaEntityInte
         'label' => 'above',
         'type' => 'string',
         'weight' => -5,
-      ]
-      )
+      ])
       ->setDisplayOptions('form', [
         'type' => 'string_textfield',
         'weight' => -5,
-      ]
-      )
+      ])
       ->setDisplayConfigurable('form', TRUE)
       ->setDisplayConfigurable('view', TRUE);
 
@@ -105,9 +103,9 @@ class SimplemetaEntity extends ContentEntityBase implements SimplemetaEntityInte
    * {@inheritdoc}
    */
   public function preSave(EntityStorageInterface $storage) {
-    $path = $this->get('path')->get(0)->getValue();
+    $path = $this->url->value;
     $fit = static::calculateFit($path);
-    $this->get('fit')->set(0, $fit);
+    $this->fit->value = $fit;
 
     parent::preSave($storage);
   }

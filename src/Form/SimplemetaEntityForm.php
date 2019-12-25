@@ -18,35 +18,38 @@ class SimplemetaEntityForm extends ContentEntityForm {
   public function buildForm(array $form, FormStateInterface $form_state) {
     /* @var $entity \Drupal\simplemeta\Entity\SimplemetaEntity */
     $form = parent::buildForm($form, $form_state);
-
     $entity = $this->entity;
 
-    $data = ($entity->isNew()) ? [] : $entity->get('data')->get(0)->getValue();
+    // Prefill current path for better UX.
+    if (empty($form['url']['widget'][0]['value']['#default_value'])) {
+      $current_path = \Drupal::service('path.current')->getPath();
+      $form['url']['widget'][0]['value']['#default_value'] = $current_path;
+    }
 
-    $form['data'] = array(
+    $form['data'] = [
       '#tree' => TRUE,
-    );
+    ];
     // Meta title.
-    $form['data']['title'] = array(
+    $form['data']['title'] = [
       '#type' => 'textfield',
-      '#title' => t('Title'),
+      '#title' => $this->t('Title'),
       '#maxlength' => 255,
-      '#default_value' => (isset($data['title'])) ? $data['title'] : '',
-    );
+      '#default_value' => $entity->data->title,
+    ];
     // Meta description.
-    $form['data']['description'] = array(
+    $form['data']['description'] = [
       '#type' => 'textarea',
-      '#title' => t('Description'),
+      '#title' => $this->t('Description'),
       '#resizable' => FALSE,
-      '#default_value' => (isset($data['description'])) ? $data['description'] : '',
-    );
-    $form['data']['keywords'] = array(
+      '#default_value' => $entity->data->description,
+    ];
+    $form['data']['keywords'] = [
       '#type' => 'textfield',
-      '#title' => t('Keywords'),
-      '#description' => t('Comma-separated list of keywords.'),
+      '#title' => $this->t('Keywords'),
+      '#description' => $this->t('Comma-separated list of keywords.'),
       '#maxlength' => 255,
-      '#default_value' => (isset($data['keywords'])) ? $data['keywords'] : '',
-    );
+      '#default_value' => $entity->data->keywords,
+    ];
 
     return $form;
   }
@@ -71,7 +74,6 @@ class SimplemetaEntityForm extends ContentEntityForm {
           '%label' => $entity->label(),
         ]));
     }
-    $form_state->setRedirect('entity.simplemeta.canonical', ['simplemeta' => $entity->id()]);
   }
 
 }

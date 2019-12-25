@@ -7,6 +7,7 @@
 
 use Drupal\Core\Routing\RouteMatchInterface;
 use Drupal\Component\Utility\Html;
+use Drupal\simplemeta\Entity\SimplemetaEntity;
 
 /**
  * Implements hook_help().
@@ -30,13 +31,11 @@ function simplemeta_help($route_name, RouteMatchInterface $route_match) {
  * Preprocess html.
  */
 function simplemeta_preprocess_html(&$vars) {
-  if (($entity = simplemeta_get_page_meta())
-      && ($data = $entity->get('data')->get(0))
-      && ($value = $data->getValue())
-      && $value['title']) {
+  if (simplemeta_need_to_inject() && ($entity = simplemeta_get_page_meta())
+      && ($title = $entity->data->title)) {
 
     $vars['head_title'] = [
-      'title' => Html::escape($value['title']),
+      'title' => Html::escape($title),
     ];
   }
 }
@@ -45,22 +44,46 @@ function simplemeta_preprocess_html(&$vars) {
  * Implements hook_page_bottom().
  */
 function simplemeta_page_bottom(array &$page_bottom) {
-  if (($entity = simplemeta_get_page_meta())
-      && ($data = $entity->get('data')->get(0))
-      && ($data = $data->getValue())) {
+  $user = \Drupal::currentUser();
 
-    foreach ($data as $key => $value) {
-      $element = [
-        '#tag' => 'meta',
-        '#attributes' => [
-          'name' => $key,
-          'content' => $value,
-        ],
-      ];
-      $page_bottom['simplemeta'][$key]['#attached']['html_head'][] = [
-        $element,
-        $key,
-      ];
+  if (simplemeta_need_to_inject() && $user->hasPermission('administer simplemeta')) {
+    if ($entity = simplemeta_get_page_meta()) {}
+    else {
+      $entity = SimplemetaEntity::create();
+    }
+    $form = \Drupal::service('entity.form_builder')->getForm($entity, 'default');
+    if (!empty($form['actions']['delete'])) {
+      $current_path = \Drupal::service('path.current')->getPath();
+
+      $query = $form['actions']['delete']['#url']->getOption('query');
+      $query['destination'] = $current_path;
+      $form['actions']['delete']['#url']->setOption('query', $query);
+    }
+    $form['#attached']['library'][] = 'simplemeta/simplemeta';
+
+    $page_bottom['simplemeta'] = $form;
+  }
+}
+
+/**
+ * Implements hook_page_attachments().
+ */
+function simplemeta_page_attachments(array &$attachments) {
+  if (simplemeta_need_to_inject() && ($entity = simplemeta_get_page_meta())) {
+    foreach (['title', 'description', 'keywords'] as $element) {
+      if ($entity->data->{$element}) {
+        $tag = [
+          '#tag' => 'meta',
+          '#attributes' => [
+            'name' => $element,
+            'content' => $entity->data->{$element},
+          ],
+        ];
+        $attachments['#attached']['html_head'][] = [
+          $tag,
+          $element,
+        ];
+      }
     }
   }
 }
@@ -84,7 +107,7 @@ function simplemeta_meta_load_by_path($path, $langcode = NULL) {
   $condition = is_array($path) ? 'IN' : '=';
 
   $query = \Drupal::entityQuery('simplemeta');
-  $query->condition('path', $path, $condition);
+  $query->condition('url', $path, $condition);
   $query->condition('langcode', $langcode);
   $query->range(0, 1);
   if ($condition == 'IN') {
@@ -92,7 +115,8 @@ function simplemeta_meta_load_by_path($path, $langcode = NULL) {
   }
   $result = $query->execute();
   if (!empty($result)) {
-    return entity_load('simplemeta', reset($result));
+
+    return SimplemetaEntity::load(reset($result));
   }
   return FALSE;
 }
@@ -121,6 +145,7 @@ function simplemeta_get_page_meta($path = NULL, $langcode = NULL, $reset = FALSE
     $ancestors = simplemeta_path_get_ancestors($parts);
     $cache[$path] = simplemeta_meta_load_by_path($ancestors, $langcode);
   }
+
   return $cache[$path];
 }
 
@@ -144,7 +169,7 @@ function simplemeta_path_get_ancestors(array $parts) {
   $end = (1 << $number_parts) - 1;
   // Menu_masks actually takes defined menu paths (via hook_menu()
   // implementation) into account.
-//  $masks = variable_get('menu_masks');
+  // $masks = variable_get('menu_masks');
   $masks = [];
   // If the optimized menu_masks array is not available use brute force to get
   // the correct $ancestors and $placeholders returned. Do not use this as the
@@ -187,4 +212,17 @@ function simplemeta_path_get_ancestors(array $parts) {
     $ancestors[] = $current;
   }
   return $ancestors;
+}
+
+/**
+ * Check if simplemeta needed to inject into current page.
+ *
+ * @return bool
+ *   Needed or not to inject simple meta into the current page.
+ */
+function simplemeta_need_to_inject() {
+  $route = \Drupal::routeMatch()->getRouteObject();
+  $isAdmin = \Drupal::service('router.admin_context')->isAdminRoute($route);
+
+  return !$isAdmin;
 }
