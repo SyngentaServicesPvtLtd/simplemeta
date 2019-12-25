@@ -52,6 +52,7 @@ class SimplemetaEntityHtmlRouteProvider extends AdminHtmlRouteProvider {
 
       return $route;
     }
+    return NULL;
   }
 
 }

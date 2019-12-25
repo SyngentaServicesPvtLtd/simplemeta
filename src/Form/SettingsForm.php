@@ -36,13 +36,13 @@ class SettingsForm extends ConfigFormBase {
   public function buildForm(array $form, FormStateInterface $form_state) {
     $config = $this->config('simplemeta.settings');
 
-    $form['form_enable'] = array(
+    $form['form_enable'] = [
       '#type' => 'checkbox',
       '#title' => $this->t('Enable Add Meta Tags Form'),
       '#description' => $this->t('If enabled, form will appear on pages'),
       '#default_value' => $config->get('form_enable'),
       '#return_value' => TRUE,
-    );
+    ];
 
     return parent::buildForm($form, $form_state);
   }

@@ -4,7 +4,7 @@ namespace Drupal\simplemeta;
 
 use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Entity\EntityListBuilder;
-use Drupal\Core\Routing\LinkGeneratorTrait;
+use Drupal\Core\Link;
 use Drupal\Core\Url;
 
 /**
@@ -13,8 +13,6 @@ use Drupal\Core\Url;
  * @ingroup simplemeta
  */
 class SimplemetaEntityListBuilder extends EntityListBuilder {
-
-  use LinkGeneratorTrait;
 
   /**
    * {@inheritdoc}
@@ -31,12 +29,12 @@ class SimplemetaEntityListBuilder extends EntityListBuilder {
   public function buildRow(EntityInterface $entity) {
     /* @var $entity \Drupal\simplemeta\Entity\SimplemetaEntity */
     $row['id'] = $entity->id();
-    $row['name'] = $this->l(
+    $row['name'] = Link::fromTextAndUrl(
       $entity->label(),
       new Url(
-        'entity.simplemeta.edit_form', array(
+        'entity.simplemeta.edit_form', [
           'simplemeta' => $entity->id(),
-        )
+        ]
       )
     );
     return $row + parent::buildRow($entity);
