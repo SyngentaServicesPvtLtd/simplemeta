@@ -147,10 +147,16 @@ function simplemeta_preprocess_html(&$vars) {
   if ($meta = simplemeta_get_page_meta($_GET['q'], $language->language)) {
     // Set page title.
     if (!empty($meta->data['title'])) {
+      if (module_exists('token')) {
+        $meta->data['title'] = token_replace($meta->data['title']);
+      }
       $vars['head_title'] = check_plain($meta->data['title']);
     }
 
     foreach ($meta->view as $key => $item) {
+      if (module_exists('token')) {
+        $item = token_replace($item);
+      }
       $head_item = array(
         '#type' => 'markup',
         '#markup' => $item,
