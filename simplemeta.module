@@ -349,6 +349,7 @@ function simplemeta_get_page_meta($path = NULL, $language = '', $reset = FALSE) 
       $original_map = arg(NULL, $path);
       $parts = array_slice($original_map, 0, MENU_MAX_PARTS);
       $ancestors = simplemeta_path_get_ancestors($parts);
+      array_unshift($ancestors, $path);
       $query = db_select('simplemeta', 's')
         ->fields('s')
         ->condition('s.path', $ancestors, 'IN')
